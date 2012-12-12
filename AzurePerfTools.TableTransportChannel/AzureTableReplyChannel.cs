@@ -105,9 +105,6 @@ namespace AzurePerfTools.TableTransportChannel
 
         public bool WaitForRequest(TimeSpan timeout)
         {
-            // Here is the code that actually waits for the file to show up in the directory. This is the part that we will
-            // change to watch Azure table storage.
-
             ThrowIfDisposedOrNotOpen();
             SoapMessageTableEntity soapMessage;
             return this.WaitForRequestMessage(timeout, out soapMessage);
