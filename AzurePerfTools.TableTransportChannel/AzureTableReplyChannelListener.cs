@@ -63,7 +63,7 @@ namespace AzurePerfTools.TableTransportChannel
         protected override IAsyncResult OnBeginAcceptChannel(TimeSpan timeout, AsyncCallback callback, object state)
         {
             if (this.replyChannel != null)
-                System.Threading.Thread.Sleep(TimeSpan.FromDays(1));
+                System.Threading.Thread.Sleep(-1);
 
             DummyAsyncResult asyncResult = new DummyAsyncResult() { AsyncState = state, Timeout = timeout };
             callback(asyncResult);
