@@ -13,13 +13,6 @@ namespace AzurePerfTools.TableTransportChannel
             get { return typeof(AzureTableTransportBinding); }
         }
 
-        [ConfigurationProperty(ConfigurationConstants.DevelopmentStorage, DefaultValue = true)]
-        public bool DevelopmentStorage
-        {
-            get { return (bool)base[ConfigurationConstants.DevelopmentStorage]; }
-            set { base[ConfigurationConstants.DevelopmentStorage] = value; }
-        }
-
         [ConfigurationProperty(ConfigurationConstants.DeploymentId)]
         public string DeploymentId
         {
@@ -27,18 +20,11 @@ namespace AzurePerfTools.TableTransportChannel
             set { base[ConfigurationConstants.DeploymentId] = value; }
         }
 
-        [ConfigurationProperty(ConfigurationConstants.XStoreAccountName)]
-        public string XStoreAccountName
+        [ConfigurationProperty(ConfigurationConstants.ConnectionString, DefaultValue = ConfigurationConstants.DevelopmentStorage)]
+        public string ConnectionString
         {
-            get { return (string)base[ConfigurationConstants.XStoreAccountName]; }
-            set { base[ConfigurationConstants.XStoreAccountName] = value; }
-        }
-
-        [ConfigurationProperty(ConfigurationConstants.XStoreAccountKey)]
-        public string XStoreAccountKey
-        {
-            get { return (string)base[ConfigurationConstants.XStoreAccountKey]; }
-            set { base[ConfigurationConstants.XStoreAccountKey] = value; }
+            get { return (string)base[ConfigurationConstants.ConnectionString]; }
+            set { base[ConfigurationConstants.ConnectionString] = value; }
         }
 
         [ConfigurationProperty(ConfigurationConstants.RoleName)]
@@ -55,17 +41,31 @@ namespace AzurePerfTools.TableTransportChannel
             set { base[ConfigurationConstants.InstanceName] = value; }
         }
 
+        [ConfigurationProperty(ConfigurationConstants.IdleSleep, DefaultValue = ConfigurationConstants.IdleSleepMs)]
+        public int IdleSleep
+        {
+            get { return (int)base[ConfigurationConstants.IdleSleep]; }
+            set { base[ConfigurationConstants.IdleSleep] = value; }
+        }
+
+        [ConfigurationProperty(ConfigurationConstants.ActiveSleep, DefaultValue = ConfigurationConstants.ActiveSleepMs)]
+        public int ActiveSleep
+        {
+            get { return (int)base[ConfigurationConstants.ActiveSleep]; }
+            set { base[ConfigurationConstants.ActiveSleep] = value; }
+        }
+
         protected override ConfigurationPropertyCollection Properties
         {
             get
             {
                 var properties = base.Properties;
-                properties.Add(new ConfigurationProperty(ConfigurationConstants.DevelopmentStorage, typeof(Boolean), true));
+                properties.Add(new ConfigurationProperty(ConfigurationConstants.ConnectionString, typeof(string), ConfigurationConstants.DevelopmentStorage));
                 properties.Add(new ConfigurationProperty(ConfigurationConstants.DeploymentId, typeof(string)));
-                properties.Add(new ConfigurationProperty(ConfigurationConstants.XStoreAccountName, typeof(string)));
-                properties.Add(new ConfigurationProperty(ConfigurationConstants.XStoreAccountKey, typeof(string)));
                 properties.Add(new ConfigurationProperty(ConfigurationConstants.RoleName, typeof(string)));
                 properties.Add(new ConfigurationProperty(ConfigurationConstants.InstanceName, typeof(string)));
+                properties.Add(new ConfigurationProperty(ConfigurationConstants.IdleSleep, typeof(int), ConfigurationConstants.IdleSleepMs));
+                properties.Add(new ConfigurationProperty(ConfigurationConstants.ActiveSleep, typeof(int), ConfigurationConstants.ActiveSleepMs));
                 return properties;
             }
         }
@@ -74,12 +74,12 @@ namespace AzurePerfTools.TableTransportChannel
         {
             base.InitializeFrom(binding);
             AzureTableTransportBinding tableBinding = (AzureTableTransportBinding)binding;
-            this.DevelopmentStorage = tableBinding.transportElement.DevelopmentStorage;
+            this.ConnectionString = tableBinding.transportElement.ConnectionString;
             this.DeploymentId = tableBinding.transportElement.DeploymentId;
-            this.XStoreAccountName = tableBinding.transportElement.XStoreAccountName;
-            this.XStoreAccountKey = tableBinding.transportElement.XStoreAccountKey;
             this.RoleName = tableBinding.transportElement.RoleName;
             this.InstanceName = tableBinding.transportElement.InstanceName;
+            this.IdleSleep = tableBinding.transportElement.IdleSleep;
+            this.ActiveSleep = tableBinding.transportElement.ActiveSleep;
         }
 
         protected override void OnApplyConfiguration(Binding binding)
@@ -98,12 +98,12 @@ namespace AzurePerfTools.TableTransportChannel
             }
 
             AzureTableTransportBinding tableBinding = (AzureTableTransportBinding)binding;
-            tableBinding.transportElement.DevelopmentStorage = this.DevelopmentStorage;
+            tableBinding.transportElement.ConnectionString = this.ConnectionString;
             tableBinding.transportElement.DeploymentId = this.DeploymentId;
-            tableBinding.transportElement.XStoreAccountName = this.XStoreAccountName;
-            tableBinding.transportElement.XStoreAccountKey = this.XStoreAccountKey;
             tableBinding.transportElement.RoleName = this.RoleName;
             tableBinding.transportElement.InstanceName = this.InstanceName;
+            tableBinding.transportElement.IdleSleep = this.IdleSleep;
+            tableBinding.transportElement.ActiveSleep = this.ActiveSleep;
         }
     }
 

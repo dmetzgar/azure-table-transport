@@ -87,7 +87,6 @@ namespace AzurePerfTools.TableTransportChannel
                 lock (writeLock)
                 {
                     this.parent.WriteReplyMessage(message);
-                    //this.parent.WriteMessage(AzureTableChannelBase.PathToFile(this.parent.LocalAddress.Uri, "reply"), message);
                 }
             }
 

@@ -14,6 +14,8 @@ namespace AzurePerfTools.TableTransportChannel
         public readonly long MaxReceivedMessageSize;
         readonly CloudStorageAccount storageAccount;
         readonly string partitionKey;
+        readonly TimeSpan idleSleep;
+        readonly TimeSpan activeSleep;
 
         public AzureTableRequestChannelFactory(AzureTableTransportBindingElement transportElement, BindingContext context)
             : base(context.Binding)
@@ -23,21 +25,16 @@ namespace AzurePerfTools.TableTransportChannel
             this.encoderFactory = messageEncodingElement.CreateMessageEncoderFactory();
             this.MaxReceivedMessageSize = transportElement.MaxReceivedMessageSize;
             this.partitionKey = transportElement.PartitionKey;
-
-            if (transportElement.DevelopmentStorage)
-            {
-                this.storageAccount = CloudStorageAccount.DevelopmentStorageAccount;
-            }
-            else
-            {
-                this.storageAccount = new CloudStorageAccount(new StorageCredentials(transportElement.XStoreAccountName, transportElement.XStoreAccountKey), true);
-            }
+            this.storageAccount = CloudStorageAccount.Parse(transportElement.ConnectionString);
+            this.idleSleep = TimeSpan.FromMilliseconds(transportElement.IdleSleep);
+            this.activeSleep = TimeSpan.FromMilliseconds(transportElement.ActiveSleep);
         }
 
         protected override IRequestChannel OnCreateChannel(EndpointAddress address, Uri via)
         {
             CloudTableClient cloudTableClient = this.storageAccount.CreateCloudTableClient();
-            return new AzureTableRequestChannel(this.bufferManager, this.encoderFactory, address, this, via, cloudTableClient, via.AbsolutePath, partitionKey);
+            return new AzureTableRequestChannel(this.bufferManager, this.encoderFactory, address, this, via, cloudTableClient, 
+                via.AbsolutePath, partitionKey, idleSleep, activeSleep);
         }
 
         protected override IAsyncResult OnBeginOpen(TimeSpan timeout, AsyncCallback callback, object state)

@@ -1,4 +1,5 @@
-﻿using Microsoft.WindowsAzure.Storage.Table;
+﻿using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Table;
 using System;
 using System.IO;
 using System.ServiceModel;
@@ -12,8 +13,10 @@ namespace AzurePerfTools.TableTransportChannel
         readonly object writeLock;
 
         public AzureTableRequestChannel(BufferManager bufferManager, MessageEncoderFactory encoderFactory, EndpointAddress address,
-           AzureTableRequestChannelFactory parent, Uri via, CloudTableClient cloudTableClient, string tableName, string partitionKey)
-            : base(bufferManager, encoderFactory, address, parent, parent.MaxReceivedMessageSize, cloudTableClient, tableName, partitionKey)
+           AzureTableRequestChannelFactory parent, Uri via, CloudTableClient cloudTableClient, string tableName, string partitionKey,
+            TimeSpan idleSleep, TimeSpan activeSleep)
+            : base(bufferManager, encoderFactory, address, parent, parent.MaxReceivedMessageSize, cloudTableClient, tableName, 
+            partitionKey, idleSleep, activeSleep)
         {
             this.via = via;
             this.writeLock = new object();
@@ -52,12 +55,12 @@ namespace AzurePerfTools.TableTransportChannel
                     }
 
                     // Read the reply message
-                    Message replyMessage = this.ReadMessage(this.tableName + "Reply", soapMessage);
+                    Message replyMessage = this.ReadMessage(string.Format(ConfigurationConstants.ReplyTable, this.tableName), soapMessage);
                     return replyMessage;
                 }
-                catch (IOException exception)
+                catch (StorageException exception)
                 {
-                    throw ConvertException(exception);
+                    throw new CommunicationException(exception.Message, exception);
                 }
             }
         }

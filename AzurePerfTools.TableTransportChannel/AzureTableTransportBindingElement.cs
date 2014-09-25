@@ -19,13 +19,13 @@ namespace AzurePerfTools.TableTransportChannel
         AzureTableTransportBindingElement(AzureTableTransportBindingElement other)
             : base(other)
         {
-            this.XStoreAccountName = other.XStoreAccountName;
-            this.XStoreAccountKey = other.XStoreAccountKey;
-            this.DevelopmentStorage = other.DevelopmentStorage;
+            this.ConnectionString = other.ConnectionString;
             this.DeploymentId = other.DeploymentId;
             this.RoleName = other.RoleName;
             this.InstanceName = other.InstanceName;
             this.partitionKey = other.partitionKey;
+            this.IdleSleep = other.IdleSleep;
+            this.ActiveSleep = other.ActiveSleep;
         }
 
         public override string Scheme
@@ -33,9 +33,7 @@ namespace AzurePerfTools.TableTransportChannel
             get { return "azure.table"; }
         }
 
-        public string XStoreAccountName { get; set; }
-        public string XStoreAccountKey { get; set; }
-        public bool DevelopmentStorage { get; set; }
+        public string ConnectionString { get; set; }
 
         [DebuggerHidden]
         public string DeploymentId
@@ -103,6 +101,10 @@ namespace AzurePerfTools.TableTransportChannel
                 return partitionKey;
             }
         }
+
+        public int IdleSleep { get; set; }
+
+        public int ActiveSleep { get; set; }
 
         public override bool CanBuildChannelFactory<TChannel>(BindingContext context)
         {

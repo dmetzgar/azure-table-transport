@@ -1,7 +1,7 @@
-﻿using Microsoft.WindowsAzure.Storage.Table;
+﻿using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Table;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.ServiceModel;
 using System.ServiceModel.Channels;
@@ -22,10 +22,12 @@ namespace AzurePerfTools.TableTransportChannel
         protected readonly CloudTableClient cloudTableClient;
         protected readonly string tableName;
         protected readonly string partitionKey;
+        readonly TimeSpan idleSleep;
+        readonly TimeSpan activeSleep;
         private bool channelClosed;
 
         public AzureTableChannelBase(BufferManager bufferManager, MessageEncoderFactory encoderFactory, EndpointAddress address, ChannelManagerBase parent, 
-            long maxReceivedMessageSize, CloudTableClient cloudTableClient, string tableName, string partitionKey)
+            long maxReceivedMessageSize, CloudTableClient cloudTableClient, string tableName, string partitionKey, TimeSpan idleSleep, TimeSpan activeSleep)
             : base(parent)
         {
             this.address = address;
@@ -34,9 +36,10 @@ namespace AzurePerfTools.TableTransportChannel
             this.maxReceivedMessageSize = maxReceivedMessageSize;
             this.partitionKey = partitionKey;
             this.channelClosed = false;
-
             this.cloudTableClient = cloudTableClient;
             this.tableName = tableName;
+            this.idleSleep = idleSleep;
+            this.activeSleep = activeSleep;
         }
 
         protected bool IsChannelClosed
@@ -46,12 +49,12 @@ namespace AzurePerfTools.TableTransportChannel
 
         protected Message ReadRequestMessage()
         {
-            return this.ReadMessage(this.tableName + "Request");
+            return this.ReadMessage(string.Format(ConfigurationConstants.RequestTable, this.tableName));
         }
 
         protected Message ReadReplyMessage()
         {
-            return this.ReadMessage(this.tableName + "Reply");
+            return this.ReadMessage(string.Format(ConfigurationConstants.ReplyTable, this.tableName));
         }
 
         private Message ReadMessage(string tableName)
@@ -93,9 +96,9 @@ namespace AzurePerfTools.TableTransportChannel
                 ArraySegment<byte> buffer = new ArraySegment<byte>(data, 0, (int)bytesTotal);
                 return this.encoder.ReadMessage(buffer, this.bufferManager);
             }
-            catch (IOException exception)
+            catch (StorageException exception)
             {
-                throw ConvertException(exception);
+                throw new CommunicationException(exception.Message, exception);
             }
             finally
             {
@@ -110,12 +113,12 @@ namespace AzurePerfTools.TableTransportChannel
 
         protected void WriteRequestMessage(Message message)
         {
-            this.WriteMessage(this.tableName + "Request", message);
+            this.WriteMessage(string.Format(ConfigurationConstants.RequestTable, this.tableName), message);
         }
 
         protected void WriteReplyMessage(Message message)
         {
-            this.WriteMessage(this.tableName + "Reply", message);
+            this.WriteMessage(string.Format(ConfigurationConstants.ReplyTable, this.tableName), message);
         }
 
         private void WriteMessage(string tableName, Message message)
@@ -137,15 +140,15 @@ namespace AzurePerfTools.TableTransportChannel
 
         protected bool WaitForRequestMessage(TimeSpan timeout, out SoapMessageTableEntity soapMessage)
         {
-            return this.WaitForMessage(this.tableName + "Request", timeout, TimeSpan.FromSeconds(1), out soapMessage);
+            return this.WaitForMessage(string.Format(ConfigurationConstants.RequestTable, this.tableName), timeout, out soapMessage);
         }
 
         protected bool WaitForReplyMessage(TimeSpan timeout, out SoapMessageTableEntity soapMessage)
         {
-            return this.WaitForMessage(this.tableName + "Reply", timeout, TimeSpan.FromSeconds(1), out soapMessage);
+            return this.WaitForMessage(string.Format(ConfigurationConstants.ReplyTable, this.tableName), timeout, out soapMessage);
         }
 
-        private bool WaitForMessage(string tableName, TimeSpan timeout, TimeSpan sleep, out SoapMessageTableEntity soapMessage)
+        private bool WaitForMessage(string tableName, TimeSpan timeout, out SoapMessageTableEntity soapMessage)
         {
             soapMessage = null;
             if (this.channelClosed)
@@ -159,6 +162,8 @@ namespace AzurePerfTools.TableTransportChannel
                 CloudTable cloudTable = this.cloudTableClient.GetTableReference(tableName);
                 bool foundRecords = false;
                 DateTime endTime = timeout == TimeSpan.MaxValue ? DateTime.MaxValue : DateTime.Now + timeout;
+                bool active = true;
+                DateTime lastMsgRecvd = DateTime.Now;
                 while (!foundRecords && DateTime.Now < endTime && !this.channelClosed)
                 {
                     IEnumerable<SoapMessageTableEntity> queryResults = cloudTable.ExecuteQuery<SoapMessageTableEntity>(
@@ -166,37 +171,28 @@ namespace AzurePerfTools.TableTransportChannel
                     if (queryResults.Count() > 0)
                     {
                         foundRecords = true;
+                        lastMsgRecvd = DateTime.Now;
                         soapMessage = queryResults.First();
                     }
                     else
                     {
-                        Thread.Sleep(sleep);
+                        if (active && DateTime.Now - lastMsgRecvd > TimeSpan.FromSeconds(30))
+                            active = false;
+                        Thread.Sleep(active ? this.activeSleep : this.idleSleep);
                     }
                 }
 
                 return foundRecords;
             }
-            catch (IOException exception)
+            catch (StorageException exception)
             {
-                throw ConvertException(exception);
+                throw new CommunicationException(exception.Message, exception);
             }
         }
 
         public EndpointAddress RemoteAddress
         {
             get { return this.address; }
-        }
-
-        protected static Exception ConvertException(Exception exception)
-        {
-            Type exceptionType = exception.GetType();
-            if (exceptionType == typeof(System.IO.DirectoryNotFoundException) ||
-                exceptionType == typeof(System.IO.FileNotFoundException) ||
-                exceptionType == typeof(System.IO.PathTooLongException))
-            {
-                return new EndpointNotFoundException(exception.Message, exception);
-            }
-            return new CommunicationException(exception.Message, exception);
         }
 
         protected void SignalChannelClosed()

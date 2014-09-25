@@ -10,8 +10,10 @@ namespace AzurePerfTools.TableTransportChannel
         readonly EndpointAddress localAddress;
 
         public AzureTableReplyChannel(BufferManager bufferManager, MessageEncoderFactory encoderFactory, EndpointAddress address,
-           AzureTableReplyChannelListener parent, CloudTableClient cloudTableClient, string tableName, string partitionKey)
-            : base(bufferManager, encoderFactory, address, parent, parent.MaxReceivedMessageSize, cloudTableClient, tableName, partitionKey)
+           AzureTableReplyChannelListener parent, CloudTableClient cloudTableClient, string tableName, string partitionKey,
+            TimeSpan idleSleep, TimeSpan activeSleep)
+            : base(bufferManager, encoderFactory, address, parent, parent.MaxReceivedMessageSize, cloudTableClient, tableName, 
+            partitionKey, idleSleep, activeSleep)
         {
             this.localAddress = address;
         }
@@ -49,7 +51,7 @@ namespace AzurePerfTools.TableTransportChannel
         private RequestContext ReceiveRequestContext(SoapMessageTableEntity soapMessage)
         {
             ThrowIfDisposedOrNotOpen();
-            Message message = this.ReadMessage(this.tableName + "Request", soapMessage);
+            Message message = this.ReadMessage(string.Format(ConfigurationConstants.RequestTable, this.tableName), soapMessage);
             return new AzureTableRequestContext(message, this);
         }
 

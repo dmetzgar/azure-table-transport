@@ -16,6 +16,8 @@ namespace AzurePerfTools.TableTransportChannel
         readonly Uri uri;
         readonly CloudStorageAccount storageAccount;
         readonly string partitionKey;
+        readonly TimeSpan idleSleep;
+        readonly TimeSpan activeSleep;
         CloudTableClient cloudTableClient;
         AzureTableReplyChannel replyChannel;
 
@@ -29,23 +31,17 @@ namespace AzurePerfTools.TableTransportChannel
             this.scheme = transportElement.Scheme;
             this.uri = new Uri(context.ListenUriBaseAddress, context.ListenUriRelativeAddress);
             this.partitionKey = transportElement.PartitionKey;
-
-            if (transportElement.DevelopmentStorage)
-            {
-                this.storageAccount = CloudStorageAccount.DevelopmentStorageAccount;
-            }
-            else
-            {
-                this.storageAccount = new CloudStorageAccount(new StorageCredentials(transportElement.XStoreAccountName, transportElement.XStoreAccountKey), true);
-            }
+            this.storageAccount = CloudStorageAccount.Parse(transportElement.ConnectionString);
+            this.idleSleep = TimeSpan.FromMilliseconds(transportElement.IdleSleep);
+            this.activeSleep = TimeSpan.FromMilliseconds(transportElement.ActiveSleep);
         }
 
         protected override void OnOpen(TimeSpan timeout)
         {
             this.cloudTableClient = this.storageAccount.CreateCloudTableClient();
-            CloudTable requestTable = cloudTableClient.GetTableReference(Uri.AbsolutePath + "Request");
+            CloudTable requestTable = cloudTableClient.GetTableReference(string.Format(ConfigurationConstants.RequestTable, Uri.AbsolutePath));
             requestTable.CreateIfNotExists();
-            CloudTable replyTable = cloudTableClient.GetTableReference(Uri.AbsolutePath + "Reply");
+            CloudTable replyTable = cloudTableClient.GetTableReference(string.Format(ConfigurationConstants.ReplyTable, Uri.AbsolutePath));
             replyTable.CreateIfNotExists();
         }
 
@@ -54,7 +50,8 @@ namespace AzurePerfTools.TableTransportChannel
             if (this.replyChannel == null)
             {
                 EndpointAddress address = new EndpointAddress(Uri);
-                this.replyChannel = new AzureTableReplyChannel(this.bufferManager, this.encoderFactory, address, this, this.cloudTableClient, this.Uri.AbsolutePath, this.partitionKey);
+                this.replyChannel = new AzureTableReplyChannel(this.bufferManager, this.encoderFactory, address, this, this.cloudTableClient, 
+                    this.Uri.AbsolutePath, this.partitionKey, this.idleSleep, this.activeSleep);
             }
 
             return this.replyChannel;

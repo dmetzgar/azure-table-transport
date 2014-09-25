@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.ServiceModel.Channels;
-using System.Configuration;
+﻿using System.Configuration;
 using System.Globalization;
+using System.ServiceModel.Channels;
 
 namespace AzurePerfTools.TableTransportChannel
 {
